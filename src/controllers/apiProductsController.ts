@@ -23,32 +23,32 @@ export const getProducts = async (req: Request, res: Response) => {
     // Resolve category/supplier names -> ids when needed
     if (categoryId && !isUuid(categoryId)) {
       try {
-        const { data: cat, error: catErr } = await supabase.from('categories').select('id').ilike('name', categoryId).limit(1).single();
+        const { data: cat, error: catErr } = await supabase.from('categorias').select('id').ilike('nombre', categoryId).limit(1).single();
         if (!catErr && cat && cat.id) categoryId = cat.id;
         else categoryId = undefined;
       } catch (e) { categoryId = undefined; }
     }
     if (supplierId && !isUuid(supplierId)) {
       try {
-        const { data: sup, error: supErr } = await supabase.from('suppliers').select('id').ilike('name', supplierId).limit(1).single();
+        const { data: sup, error: supErr } = await supabase.from('proveedores').select('id').ilike('nombre', supplierId).limit(1).single();
         if (!supErr && sup && sup.id) supplierId = sup.id;
         else supplierId = undefined;
       } catch (e) { supplierId = undefined; }
     }
 
-    // Build base query and include supplier relation as an aliased field
-    // Note: only select supplier columns that exist in the `suppliers` table (id,name).
-    let prodQuery = supabase.from('products').select(
-      'id,sku,name,description,cost,price1,price2,price3,min_stock,unit,image_path, supplier:suppliers(id,name)',
+    // Build base query against Spanish tables and include proveedor relation
+    // We'll select Spanish columns and map to response shape later
+    let prodQuery = supabase.from('productos').select(
+      'id,sku,nombre,descripcion,costo,precio_1,precio_2,precio_3,stock_minimo,unidad,imagen_path, proveedor:proveedores(id,nombre)',
       { count: 'exact' }
     );
 
     if (q) {
-      const esc = q.replace(/%/g, '\\%');
-      prodQuery = prodQuery.or(`name.ilike.%${esc}%,sku.ilike.%${esc}%`);
+      const esc = q.replace(/%/g, '\%');
+      prodQuery = prodQuery.or(`nombre.ilike.%${esc}%,sku.ilike.%${esc}%`);
     }
-    if (categoryId) prodQuery = prodQuery.eq('category_id', categoryId);
-    if (supplierId) prodQuery = prodQuery.eq('supplier_id', supplierId);
+    if (categoryId) prodQuery = prodQuery.eq('categoria_id', categoryId);
+    if (supplierId) prodQuery = prodQuery.eq('proveedor_id', supplierId);
 
     const normalizeSupplier = (raw: any) => {
       if (!raw) return { id: null, name: null };
@@ -56,7 +56,7 @@ export const getProducts = async (req: Request, res: Response) => {
       if (!s) return { id: null, name: null };
       return {
         id: s.id ?? null,
-        name: s.name ?? null,
+        name: s.nombre ?? s.name ?? s.razon_social ?? null,
         image_url: s.image_url ?? undefined,
         email: s.email ?? undefined,
         phone: s.phone ?? undefined
@@ -70,37 +70,37 @@ export const getProducts = async (req: Request, res: Response) => {
       const productIds = (allProducts || []).map((p: any) => p.id).filter(Boolean);
 
       const { data: stockRows, error: stockErr } = await supabase
-        .from('product_stock')
-        .select('product_id, qty')
-        .in('product_id', productIds || []);
+        .from('stock_productos')
+        .select('producto_id, cantidad')
+        .in('producto_id', productIds || []);
       if (stockErr) return res.status(500).json({ error: stockErr.message || stockErr });
 
       const qtyByProduct: Record<string, number> = {};
       (stockRows || []).forEach((r: any) => {
-        const qv = Number(r.qty) || 0;
-        qtyByProduct[r.product_id] = (qtyByProduct[r.product_id] || 0) + qv;
+        const qv = Number(r.cantidad) || 0;
+        qtyByProduct[r.producto_id] = (qtyByProduct[r.producto_id] || 0) + qv;
       });
 
       const transformed = (allProducts || []).map((p: any) => {
         const stock = qtyByProduct[p.id] || 0;
-        const supplier = normalizeSupplier(p.supplier);
+        const supplier = normalizeSupplier(p.proveedor);
         const out: any = {
           id: p.id,
           sku: p.sku,
-          name: p.name,
-          description: p.description,
-          unit: p.unit,
-          cost: p.cost,
-          price1: p.price1,
-          price2: p.price2,
-          price3: p.price3,
-          min_stock: p.min_stock,
+          name: p.nombre,
+          description: p.descripcion,
+          unit: p.unidad,
+          cost: p.costo,
+          price1: p.precio_1,
+          price2: p.precio_2,
+          price3: p.precio_3,
+          min_stock: p.stock_minimo,
           stock,
           supplier
         };
         try {
-          if (p.image_path) {
-            let path = String(p.image_path || '').trim();
+          if (p.imagen_path) {
+            let path = String(p.imagen_path || '').trim();
             if (path.startsWith('http')) out.image_url = path;
             else {
               path = path.replace(/^\/?product-images\//i, '');
@@ -136,32 +136,32 @@ export const getProducts = async (req: Request, res: Response) => {
     const ids = (data || []).map((p: any) => p.id).filter(Boolean);
     const stockMap: Record<string, number> = {};
     if (ids.length) {
-      const { data: stocks } = await supabase.from('product_stock').select('product_id, qty').in('product_id', ids);
+      const { data: stocks } = await supabase.from('stock_productos').select('producto_id, cantidad').in('producto_id', ids);
       (stocks || []).forEach((r: any) => {
-        const qv = Number(r.qty) || 0;
-        stockMap[r.product_id] = (stockMap[r.product_id] || 0) + qv;
+        const qv = Number(r.cantidad) || 0;
+        stockMap[r.producto_id] = (stockMap[r.producto_id] || 0) + qv;
       });
     }
 
     const enriched = (data || []).map((p: any) => {
-      const supplier = normalizeSupplier(p.supplier);
+      const supplier = normalizeSupplier(p.proveedor);
       const out: any = {
         id: p.id,
         sku: p.sku,
-        name: p.name,
-        description: p.description,
-        unit: p.unit,
-        cost: p.cost,
-        price1: p.price1,
-        price2: p.price2,
-        price3: p.price3,
-        min_stock: p.min_stock,
+        name: p.nombre,
+        description: p.descripcion,
+        unit: p.unidad,
+        cost: p.costo,
+        price1: p.precio_1,
+        price2: p.precio_2,
+        price3: p.precio_3,
+        min_stock: p.stock_minimo,
         stock: stockMap[p.id] || 0,
         supplier
       };
       try {
-        if (p.image_path) {
-          let path = String(p.image_path || '').trim();
+        if (p.imagen_path) {
+          let path = String(p.imagen_path || '').trim();
           if (path.startsWith('http')) out.image_url = path;
           else {
             path = path.replace(/^\/?product-images\//i, '');
@@ -198,34 +198,33 @@ export const updateProduct = async (req: Request, res: Response) => {
     const id = req.params.id;
     if (!id) return res.status(400).json({ error: 'Missing product id' });
     const payload: any = {};
-    const allowed = ['name', 'sku', 'cost', 'min_stock', 'supplier', 'category_id'];
+    // Accept common (possibly English) input keys from clients, we'll map to Spanish DB columns before updating
+    const allowed = ['name', 'sku', 'cost', 'min_stock', 'supplier', 'category_id', 'unit'];
     for (const k of allowed) {
       if (req.body[k] !== undefined) payload[k] = req.body[k];
     }
     if (Object.keys(payload).length === 0) return res.status(400).json({ error: 'No fields to update' });
 
     // Handle supplier: user may send supplier as name or as supplier_id
+    // Handle supplier: user may send supplier as name or as supplier_id
     if (payload.supplier !== undefined) {
       const maybe = String(payload.supplier || '').trim();
       const isUuid = /^[0-9a-fA-F\-]{36}$/.test(maybe);
       try {
         if (isUuid) {
-          payload.supplier_id = maybe;
+          payload.proveedor_id = maybe;
         } else if (maybe.length > 0) {
-          // find supplier by name (case-insensitive)
-          const { data: existing, error: findErr } = await supabase.from('suppliers').select('id').ilike('name', maybe).limit(1).single();
+          const { data: existing, error: findErr } = await supabase.from('proveedores').select('id').ilike('nombre', maybe).limit(1).single();
           if (!findErr && existing && existing.id) {
-            payload.supplier_id = existing.id;
+            payload.proveedor_id = existing.id;
           } else {
-            // insert new supplier record
-            const { data: ins, error: insErr } = await supabase.from('suppliers').insert({ name: maybe }).select().single();
-            if (!insErr && ins && ins.id) payload.supplier_id = ins.id;
+            const { data: ins, error: insErr } = await supabase.from('proveedores').insert({ nombre: maybe }).select().single();
+            if (!insErr && ins && ins.id) payload.proveedor_id = ins.id;
           }
         }
       } catch (e) {
         console.warn('supplier lookup/insert failed', e);
       }
-      // remove raw supplier field so we don't try to update a non-existent column
       delete payload.supplier;
     }
 
@@ -234,28 +233,30 @@ export const updateProduct = async (req: Request, res: Response) => {
       try {
         const prices = calcPriceLevels(Number(payload.cost));
         // persist totals and breakdown so later reads don't need to recalc
-        payload.price1 = prices.price1.total;
-        payload.price2 = prices.price2.total;
-        payload.price3 = prices.price3.total;
-        payload.price1_subtotal = prices.price1.subtotal;
-        payload.price1_iva = prices.price1.iva;
-        payload.price1_total = prices.price1.total;
-        payload.price2_subtotal = prices.price2.subtotal;
-        payload.price2_iva = prices.price2.iva;
-        payload.price2_total = prices.price2.total;
-        payload.price3_subtotal = prices.price3.subtotal;
-        payload.price3_iva = prices.price3.iva;
-        payload.price3_total = prices.price3.total;
+        // Persist the three price tiers using Spanish column names. Do NOT write breakdown fields (they don't exist in productos).
+        payload.precio_1 = prices.price1.total;
+        payload.precio_2 = prices.price2.total;
+        payload.precio_3 = prices.price3.total;
       } catch (e) {
         // ignore calculation error and proceed without price fields
       }
     }
 
-    // Defensive: ensure we never send a raw `supplier` property to the DB (table uses `supplier_id`).
-    if (payload.supplier !== undefined) delete payload.supplier;
-    // Log the payload keys for easier debugging if the DB complains about missing columns
-    console.debug('updateProduct payload keys:', Object.keys(payload));
-    let { data, error } = await supabase.from('products').update(payload).eq('id', id).select().single();
+    // Map accepted input keys to Spanish DB columns
+    const dbPayload: any = {};
+    if (payload.name !== undefined) dbPayload.nombre = payload.name;
+    if (payload.sku !== undefined) dbPayload.sku = payload.sku;
+    if (payload.cost !== undefined) dbPayload.costo = payload.cost;
+    if (payload.min_stock !== undefined) dbPayload.stock_minimo = payload.min_stock;
+    if (payload.category_id !== undefined) dbPayload.categoria_id = payload.category_id;
+    if (payload.unit !== undefined) dbPayload.unidad = payload.unit;
+    if (payload.proveedor_id !== undefined) dbPayload.proveedor_id = payload.proveedor_id;
+    if (payload.precio_1 !== undefined) dbPayload.precio_1 = payload.precio_1;
+    if (payload.precio_2 !== undefined) dbPayload.precio_2 = payload.precio_2;
+    if (payload.precio_3 !== undefined) dbPayload.precio_3 = payload.precio_3;
+
+    console.debug('updateProduct dbPayload keys:', Object.keys(dbPayload));
+    let { data, error } = await supabase.from('productos').update(dbPayload).eq('id', id).select().single();
     if (error) {
       // If the error indicates missing columns (schema doesn't include the price breakdown fields),
       // strip those fields and retry the update so edits still succeed.
@@ -265,12 +266,18 @@ export const updateProduct = async (req: Request, res: Response) => {
         console.warn('Update failed due to missing columns, retrying without price breakdown fields:', msg);
         // remove any keys that start with price1_/price2_/price3_ or price1, price2, price3 totals
         const altPayload: any = {};
+        // Build a conservative altPayload mapping to Spanish columns, skipping precio_* fields if they caused issues
         for (const k of Object.keys(payload)) {
           if (/^price(1|2|3)(_|$)/.test(k)) continue;
-          if (k === 'supplier' || /^supplier_/.test(k)) continue; // avoid passing raw supplier fields
-          altPayload[k] = payload[k];
+          if (k === 'supplier' || /^supplier_/.test(k)) continue;
+          if (k === 'name') altPayload.nombre = payload[k];
+          else if (k === 'sku') altPayload.sku = payload[k];
+          else if (k === 'cost') altPayload.costo = payload[k];
+          else if (k === 'min_stock') altPayload.stock_minimo = payload[k];
+          else if (k === 'category_id') altPayload.categoria_id = payload[k];
+          else if (k === 'unit') altPayload.unidad = payload[k];
         }
-        const r = await supabase.from('products').update(altPayload).eq('id', id).select().single();
+        const r = await supabase.from('productos').update(altPayload).eq('id', id).select().single();
         data = r.data;
         if (r.error) {
           console.error('Retry update without price fields failed:', r.error);
@@ -282,9 +289,9 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
 
     // compute current stock
-    const { data: stocks, error: stockErr } = await supabase.from('product_stock').select('product_id, qty').eq('product_id', id);
+    const { data: stocks, error: stockErr } = await supabase.from('stock_productos').select('cantidad').eq('producto_id', id);
     if (stockErr) console.warn('stock fetch error', stockErr);
-    const totalStock = (stocks || []).reduce((s: number, r: any) => s + (r.qty || 0), 0);
+    const totalStock = (stocks || []).reduce((s: number, r: any) => s + (Number(r.cantidad) || 0), 0);
 
     // Ensure returned object contains computed price fields (in case cost wasn't updated but DB lacks price fields)
     const out: any = { ...data, stock: totalStock };
@@ -325,13 +332,27 @@ export const adjustStock = async (req: Request, res: Response) => {
     if (!Number.isFinite(qty) || qty === 0) return res.status(400).json({ error: 'qty must be non-zero number' });
 
     const insert = { product_id: id, qty, reason, created_at: new Date().toISOString() } as any;
-    const { data: ins, error: insErr } = await supabase.from('product_stock').insert(insert).select();
+    // Insert adjustment into movimientos_inventario and also add a stock_productos row
+    const { data: ins, error: insErr } = await supabase.from('movimientos_inventario').insert({
+      producto_id: id,
+      almacen_id: req.body.almacen_id || null,
+      tipo: 'ajuste',
+      cantidad: qty,
+      referencia: reason,
+      creado_por: (req as any).user?.id || null,
+      creado_en: new Date().toISOString()
+    }).select();
     if (insErr) return res.status(500).json({ error: insErr.message || insErr });
 
+    // Optionally update stock_productos (append a row with cantidad) — keep additive behaviour
+    try {
+      await supabase.from('stock_productos').insert({ producto_id: id, almacen_id: req.body.almacen_id || null, cantidad: qty, actualizado_en: new Date().toISOString() });
+    } catch (e) { /* ignore */ }
+
     // recompute stock
-    const { data: stocks, error: stockErr } = await supabase.from('product_stock').select('product_id, qty').eq('product_id', id);
+    const { data: stocks, error: stockErr } = await supabase.from('stock_productos').select('cantidad').eq('producto_id', id);
     if (stockErr) return res.status(500).json({ error: stockErr.message || stockErr });
-    const totalStock = (stocks || []).reduce((s: number, r: any) => s + (r.qty || 0), 0);
+    const totalStock = (stocks || []).reduce((s: number, r: any) => s + (Number(r.cantidad) || 0), 0);
 
     return res.json({ data: { product_id: id, stock: totalStock, inserted: ins } });
   } catch (err: any) {
@@ -345,17 +366,17 @@ export const getProductById = async (req: Request, res: Response) => {
     const id = req.params.id;
     if (!id) return res.status(400).json({ error: 'Missing product id' });
 
-    // Use relational alias to fetch supplier as `supplier` with required fields
+    // Use relational alias to fetch proveedor and categoria from Spanish tables
     const { data: productRow, error: prodErr } = await supabase
-      .from('products')
-      .select('id,sku,name,description,cost,price1,price2,price3,min_stock,unit,image_path, supplier:suppliers(id,name), category:categories(id,name)')
+      .from('productos')
+      .select('id,sku,nombre,descripcion,costo,precio_1,precio_2,precio_3,stock_minimo,unidad,imagen_path, proveedor:proveedores(id,nombre), categoria:categorias(id,nombre)')
       .eq('id', id)
       .single();
 
     if (prodErr || !productRow) return res.status(404).json({ error: prodErr?.message || 'Product not found' });
 
     // Normalize supplier to single object {id,name} or {id:null,name:null}
-    const rawSupplier = (productRow as any).supplier;
+    const rawSupplier = (productRow as any).proveedor;
     let supplierObj: { id: string | null; name: string | null };
     if (!rawSupplier) {
       supplierObj = { id: null, name: null };
@@ -366,31 +387,31 @@ export const getProductById = async (req: Request, res: Response) => {
       } else {
         supplierObj = {
           id: s.id ?? null,
-          name: s.name ?? null
+          name: s.nombre ?? s.name ?? s.razon_social ?? null
         };
       }
     }
 
     // Normalize category to single object {id,name} or null
-    const rawCategory = (productRow as any).category;
+    const rawCategory = (productRow as any).categoria;
     let categoryObj: { id: string | null; name: string | null } | null = null;
     if (rawCategory) {
       const c = Array.isArray(rawCategory) ? (rawCategory[0] || null) : rawCategory;
-      if (c) categoryObj = { id: c.id ?? null, name: c.name ?? null };
+      if (c) categoryObj = { id: c.id ?? null, name: c.nombre ?? c.name ?? c.razon_social ?? null };
     }
 
-    // Sum product_stock.qty to compute total stock
-    const { data: stocks, error: stockErr } = await supabase.from('product_stock').select('qty').eq('product_id', id);
+    // Sum stock_productos.cantidad to compute total stock
+    const { data: stocks, error: stockErr } = await supabase.from('stock_productos').select('cantidad').eq('producto_id', id);
     if (stockErr) console.warn('stock fetch error', stockErr);
-    const totalStock = (stocks || []).reduce((s: number, r: any) => s + (Number(r.qty) || 0), 0);
+    const totalStock = (stocks || []).reduce((s: number, r: any) => s + (Number(r.cantidad) || 0), 0);
 
     // Determine price totals: prefer stored values, otherwise compute from cost
-    let p1 = (productRow as any).price1;
-    let p2 = (productRow as any).price2;
-    let p3 = (productRow as any).price3;
-    if ((p1 === undefined || p1 === null) && (productRow as any).cost !== undefined && (productRow as any).cost !== null) {
+    let p1 = (productRow as any).precio_1;
+    let p2 = (productRow as any).precio_2;
+    let p3 = (productRow as any).precio_3;
+    if ((p1 === undefined || p1 === null) && (productRow as any).costo !== undefined && (productRow as any).costo !== null) {
       try {
-        const prs = calcPriceLevels(Number((productRow as any).cost));
+        const prs = calcPriceLevels(Number((productRow as any).costo));
         p1 = prs.price1.total;
         p2 = prs.price2.total;
         p3 = prs.price3.total;
@@ -402,8 +423,8 @@ export const getProductById = async (req: Request, res: Response) => {
     // Attach public image_url from image_path if present
     let image_url: string | undefined = undefined;
     try {
-      if (productRow.image_path) {
-        let path = String(productRow.image_path || '').trim();
+      if (productRow.imagen_path) {
+        let path = String(productRow.imagen_path || '').trim();
         if (path.startsWith('http')) {
           image_url = path;
         } else {
@@ -415,17 +436,31 @@ export const getProductById = async (req: Request, res: Response) => {
     } catch (e) { /* ignore */ }
 
     // Return object compatible with listing endpoint
+    // If supplier or category name is missing but id exists, try explicit lookup to retrieve 'nombre'
+    try {
+      if (supplierObj && !supplierObj.name && supplierObj.id) {
+        const { data: supRow } = await supabase.from('proveedores').select('id,nombre,razon_social,name').eq('id', supplierObj.id).limit(1).single();
+        if (supRow) supplierObj.name = supRow.nombre ?? supRow.name ?? supRow.razon_social ?? supplierObj.name;
+      }
+    } catch (e) { /* ignore lookup failure */ }
+    try {
+      if (categoryObj && !categoryObj.name && categoryObj.id) {
+        const { data: catRow } = await supabase.from('categorias').select('id,nombre,razon_social,name').eq('id', categoryObj.id).limit(1).single();
+        if (catRow) categoryObj.name = catRow.nombre ?? catRow.name ?? catRow.razon_social ?? categoryObj.name;
+      }
+    } catch (e) { /* ignore lookup failure */ }
+
     return res.json({ data: {
       id: productRow.id,
       sku: productRow.sku,
-      name: productRow.name,
-      description: productRow.description,
-      unit: productRow.unit,
-      cost: productRow.cost,
+      name: productRow.nombre,
+      description: productRow.descripcion,
+      unit: productRow.unidad,
+      cost: productRow.costo,
       price1: p1,
       price2: p2,
       price3: p3,
-      min_stock: productRow.min_stock,
+      min_stock: productRow.stock_minimo,
       stock: totalStock,
       supplier: supplierObj,
       category: categoryObj,
@@ -441,16 +476,16 @@ export const getProductById = async (req: Request, res: Response) => {
 export const debugGetProducts = async (req: Request, res: Response) => {
   try {
     const q = (req.query.q as string) || '';
-    let prodQuery = supabase.from('products').select('*');
+    let prodQuery = supabase.from('productos').select('*');
     if (q) {
       const esc = q.replace(/%/g, '\\%');
-      prodQuery = prodQuery.or(`name.ilike.%${esc}%,sku.ilike.%${esc}%`);
+      prodQuery = prodQuery.or(`nombre.ilike.%${esc}%,sku.ilike.%${esc}%`);
     }
-    // apply simple supplier/category name match if provided
+    // apply simple supplier/category match if provided (Spanish column names)
     const category = req.query.categoryId as string | undefined;
     const supplier = req.query.supplierId as string | undefined;
-    if (category) prodQuery = prodQuery.eq('category_id', category);
-    if (supplier) prodQuery = prodQuery.eq('supplier_id', supplier);
+    if (category) prodQuery = prodQuery.eq('categoria_id', category);
+    if (supplier) prodQuery = prodQuery.eq('proveedor_id', supplier);
 
     const { data, error } = await prodQuery;
     return res.json({ query: { q, category, supplier }, data, error: error ? (error.message || error) : null });

@@ -16,8 +16,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 (async () => {
   try {
     console.log('Conectando a Supabase...');
-    // Intentamos una consulta inofensiva: listar hasta 1 fila de la tabla `products` si existe.
-    const { data, error, status } = await supabase.from('products').select('id, sku, name').limit(1);
+    // Intentamos una consulta inofensiva: listar hasta 1 fila de la tabla `productos` si existe.
+    const { data, error, status } = await supabase.from('productos').select('id, sku, nombre').limit(1);
     if (error) {
       console.error('Respuesta con error desde Supabase:', error.message || error);
       // Mostrar detalle completo si existe

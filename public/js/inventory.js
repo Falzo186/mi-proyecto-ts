@@ -76,10 +76,10 @@ function initInventory(){
       subtotal = Number((total / 1.16).toFixed(2));
       if (iva == null) iva = Number((total - subtotal).toFixed(2));
     } else if (raw != null) {
-      // If only a single numeric value exists, treat it as total
-      total = raw;
-      subtotal = Number((total / 1.16).toFixed(2));
-      iva = Number((total - subtotal).toFixed(2));
+      // If only a single numeric value exists, treat it as SUBTOTAL (precio sin IVA)
+      subtotal = raw;
+      iva = Number((subtotal * 0.16).toFixed(2));
+      total = Number((subtotal + iva).toFixed(2));
     }
 
     // Final guard: if still null, return nulls
@@ -99,13 +99,27 @@ function initInventory(){
     document.getElementById('detailStock').textContent = (p.stock ?? 0);
     const supplierName = (() => {
       if (p.supplier_name) return p.supplier_name;
-      if (p.supplier && typeof p.supplier === 'object' && p.supplier.name) return p.supplier.name;
+      if (p.supplier && typeof p.supplier === 'object') {
+        if (p.supplier.name) return p.supplier.name;
+        if (p.supplier.nombre) return p.supplier.nombre;
+        if (p.supplier.razon_social) return p.supplier.razon_social;
+        // sometimes supplier object is namespaced differently
+        if (p.supplier.contact_name) return p.supplier.contact_name;
+      }
       if (typeof p.supplier === 'string') return p.supplier;
       if (p.supplier_id) return p.supplier_id;
       return '-';
     })();
     document.getElementById('detailSupplier').textContent = supplierName;
-    document.getElementById('detailCategory').textContent = (p.category && p.category.name) ? p.category.name : (p.category || '-');
+    const categoryName = (() => {
+      if (!p.category) return '-';
+      if (typeof p.category === 'string') return p.category;
+      if (typeof p.category === 'object') {
+        return p.category.name || p.category.nombre || p.category.razon_social || p.category.label || '-';
+      }
+      return '-';
+    })();
+    document.getElementById('detailCategory').textContent = categoryName;
     const img = document.getElementById('detailImage');
     if (img) {
       if (p.image_url) img.src = p.image_url; else img.src = '/images/placeholder.svg';
@@ -258,9 +272,9 @@ function initInventory(){
             </a>\
           </td>\
           <td>${p.sku || ''}</td>\
-            <td>${(p.supplier && p.supplier.id && p.supplier.name) ? `
-              <a href="#" class="supplier-link" data-id="${p.supplier.id}" style="text-decoration:none;color:inherit">${p.supplier.name}</a>
-            ` : 'Sin proveedor'}</td>
+            <td>${(p.supplier && p.supplier.id && (p.supplier.name || p.supplier.nombre)) ? `
+                  <a href="#" class="supplier-link" data-id="${p.supplier.id}" style="text-decoration:none;color:inherit">${p.supplier.name || p.supplier.nombre}</a>
+                ` : 'Sin proveedor'}</td>
           <td class="num">${p.stock ?? 0}</td>\
           <td class="num">${formatCurrency(valFor(1))}</td>\
           <td class="num">${formatCurrency(p.cost)}</td>\
@@ -311,7 +325,7 @@ function initInventory(){
           document.getElementById('editSku').value = prod.sku || '';
           document.getElementById('editCost').value = prod.cost ?? '';
           document.getElementById('editMinStock').value = prod.min_stock ?? '';
-          const supplierVal = prod.supplier && typeof prod.supplier === 'object' ? (prod.supplier.name || '') : (typeof prod.supplier === 'string' ? prod.supplier : '');
+          const supplierVal = prod.supplier && typeof prod.supplier === 'object' ? (prod.supplier.name || prod.supplier.nombre || prod.supplier.razon_social || '') : (typeof prod.supplier === 'string' ? prod.supplier : '');
           document.getElementById('editSupplier').value = supplierVal;
           openModal('editModal');
         });

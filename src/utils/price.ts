@@ -23,6 +23,7 @@ export interface PriceLevels {
  * @returns objeto con price1, price2 y price3. Cada nivel incluye subtotal, iva y total.
  */
 export function calcPriceLevels(cost: number, iva = 0.16): PriceLevels {
+  // aqui calcula los precios
   if (typeof cost !== 'number' || isNaN(cost) || cost < 0) {
     throw new Error('Costo inválido: debe ser un número mayor o igual a 0');
   }
