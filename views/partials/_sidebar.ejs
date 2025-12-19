@@ -1,0 +1,18 @@
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="logo"><img src="/images/logo.png" alt="Comercializadora Murillo" /></div>
+    <div class="brand-text">Comercializadora Murillo</div>
+    <div class="brand-tag">Conectando Mercados</div>
+  </div>
+  <nav class="sidebar-nav">
+    <ul>
+      <li class="nav-item <%= (typeof active !== 'undefined' && active === 'dashboard') ? 'active' : '' %>"><a href="/dashboard">🏠 <span>Inicio / Dashboard</span></a></li>
+      <li class="nav-item <%= (typeof active !== 'undefined' && active === 'pdv') ? 'active' : '' %>"><a href="/pdv">💰 <span>Punto de Venta (PDV)</span></a></li>
+      <li class="nav-item <%= (typeof active !== 'undefined' && active === 'inventory') ? 'active' : '' %>"><a href="/inventory">📦 <span>Inventario</span></a></li>
+      <li class="nav-item <%= (typeof active !== 'undefined' && active === 'reports') ? 'active' : '' %>"><a href="/reports">📊 <span>Reportes</span></a></li>
+      <li class="nav-item <%= (typeof active !== 'undefined' && active === 'quotes') ? 'active' : '' %>"><a href="/quotes">📝 <span>Cotizaciones</span></a></li>
+      <li class="nav-item <%= (typeof active !== 'undefined' && active === 'contacts') ? 'active' : '' %>"><a href="/contacts">👥 <span>Clientes y Proveedores</span></a></li>
+      <li class="nav-item <%= (typeof active !== 'undefined' && active === 'settings') ? 'active' : '' %>"><a href="/settings">⚙️ <span>Ajustes</span></a></li>
+    </ul>
+  </nav>
+</aside>

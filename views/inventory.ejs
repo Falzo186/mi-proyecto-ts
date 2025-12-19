@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+  </head>
+  <body class="pos-bg">
+    <div class="app">
+      <%- include('partials/_sidebar') %>
+      <div class="main">
+        <%- include('partials/_header') %>
+
+        <main class="content">
+          <div class="inventory-controls">
+            <div class="search-wrap">
+              <input id="globalSearch" placeholder="Buscar por producto o SKU..." />
+            </div>
+            <div class="filters">
+              <select id="filterCategory">
+                <option value="">Todas las Categorías</option>
+                <option value="ferreteria">Ferretería</option>
+                <option value="seguridad">Seguridad</option>
+                <option value="pinturas">Pinturas</option>
+              </select>
+              <select id="filterSupplier">
+                <option value="">Todos los Proveedores</option>
+                <option value="Ferretería Central">Ferretería Central</option>
+                <option value="Seguridad Plus">Seguridad Plus</option>
+                <option value="Pinturas del Norte">Pinturas del Norte</option>
+              </select>
+              <label style="margin-left:12px;display:inline-flex;align-items:center;gap:8px;color:var(--muted)">
+                <input type="checkbox" id="toggleIva" /> Mostrar precios con IVA
+              </label>
+            </div>
+          </div>
+
+          <section class="inventory-table-wrap">
+            <div id="loading" class="loading">Cargando...</div>
+            <table class="inventory-table" id="inventoryTable">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>SKU</th>
+                  <th>Proveedor</th>
+                  <th>Existencia</th>
+                  <th>Precio 1</th>
+                  <th>Costo</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryBody">
+                <!-- Filas cargadas dinámicamente desde /api/products -->
+              </tbody>
+            </table>
+
+            <div class="pagination">
+              <button id="prevPage" class="btn small">Anterior</button>
+              <span id="pageInfo">Página 1</span>
+              <button id="nextPage" class="btn small">Siguiente</button>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+      <!-- Modales para editar/ajustar producto -->
+      <div id="editModal" class="modal" aria-hidden="true">
+        <div class="modal-dialog">
+          <header class="modal-header">
+            <h3>Editar producto</h3>
+            <button class="modal-close" data-close>&times;</button>
+          </header>
+          <form id="editForm" class="modal-body">
+            <input type="hidden" id="editId" />
+            <label>Nombre <input id="editName" required /></label>
+            <label>SKU <input id="editSku" required /></label>
+            <label>Costo <input id="editCost" type="number" step="0.01" required /></label>
+            <label>Stock mínimo <input id="editMinStock" type="number" required /></label>
+            <label>Proveedor <input id="editSupplier" /></label>
+            <div class="modal-actions">
+              <button type="submit" class="btn">Guardar</button>
+              <button type="button" class="btn muted" data-close>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="adjustModal" class="modal" aria-hidden="true">
+        <div class="modal-dialog">
+          <header class="modal-header">
+            <h3>Ajustar existencia</h3>
+            <button class="modal-close" data-close>&times;</button>
+          </header>
+          <form id="adjustForm" class="modal-body">
+            <input type="hidden" id="adjustId" />
+            <div class="row"><label>Cantidad (usa negativo para reducir)</label><input id="adjustQty" type="number" required step="1" /></div>
+            <div class="row"><label>Motivo</label><input id="adjustReason" /></div>
+            <div class="modal-actions">
+              <button type="submit" class="btn">Aplicar</button>
+              <button type="button" class="btn muted" data-close>Cancelar</button>
+            </div>
+
+            <!-- Product detail modal moved below to avoid nesting inside forms -->
+          </form>
+        </div>
+      </div>
+
+      <!-- nameDialog removed; productDetailModal placed here (sibling to other modals) -->
+
+      <div id="productDetailModal" class="modal" aria-hidden="true">
+        <div class="modal-dialog">
+          <header class="modal-header">
+            <h3 id="detailName">Producto</h3>
+            <button class="modal-close" data-close>&times;</button>
+          </header>
+          <div class="modal-body" id="productDetailBody">
+              <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+                  <div class="detail-image-wrap">
+                    <img id="detailImage" class="detail-image" src="/images/placeholder.svg" alt="imagen" />
+                    <div id="detailDesc" class="detail-desc"></div>
+                  </div>
+                  <div style="flex:1;min-width:220px">
+                    <p id="detailSku" style="margin:0;color:var(--muted)"></p>
+                    <p id="detailCost" style="margin:4px 0 0 0;color:var(--muted)"></p>
+                    <p style="margin-top:8px"><strong>Proveedor:</strong> <span id="detailSupplier"></span></p>
+                    <p style="margin-top:4px"><strong>Existencia:</strong> <span id="detailStock"></span> <strong style="margin-left:8px">Unidad:</strong> <span id="detailUnit"></span></p>
+                    <p style="margin-top:8px"><strong>Categoria:</strong> <span id="detailCategory"></span></p>
+                  </div>
+                </div>
+            <hr />
+                  <div id="detailPrices" class="price-row">
+                    <div class="price-card">
+                      <div style="display:flex;justify-content:space-between;align-items:center">
+                        <div class="small">Precio 1</div>
+                      </div>
+                      <div id="detailP1" style="font-weight:700"></div>
+                      <div class="small" id="detailP1Break"></div>
+                    </div>
+                    <div class="price-card">
+                      <div class="small">Precio 2</div>
+                      <div id="detailP2" style="font-weight:700"></div>
+                      <div class="small" id="detailP2Break"></div>
+                    </div>
+                    <div class="price-card">
+                      <div class="small">Precio 3</div>
+                      <div id="detailP3" style="font-weight:700"></div>
+                      <div class="small" id="detailP3Break"></div>
+                    </div>
+                  </div>
+                  <!-- IVA toggle below the prices, aligned right -->
+                  <div style="display:flex;justify-content:flex-end;margin-top:8px">
+                    <label style="font-size:13px;color:var(--muted)"><input type="checkbox" id="applyIva" style="margin-right:8px"/> Aplicar IVA (16%)</label>
+                  </div>
+                </div>
+                <footer style="padding:12px 16px;display:flex;justify-content:flex-end;gap:8px">
+                  <button class="btn muted" data-close>Close</button>
+                </footer>
+        </div>
+      </div>
+
+      <script>
+        // Fallback loader: fetch and render quickly if main script fails
+        (function(){
+          try {
+            const inventoryBody = document.getElementById('inventoryBody');
+            const dbg = document.getElementById('debugResponse');
+            if (!inventoryBody) return;
+            fetch('/api/products').then(r=>r.json()).then(json=>{
+              if (dbg) dbg.textContent = JSON.stringify(json, null, 2);
+              if (!json || !json.data || !json.data.length) return;
+              const rows = json.data.map(p=>{
+                const tr = document.createElement('tr');
+                tr.className = 'product-row';
+                tr.innerHTML =
+                  '<td style="display:flex;align-items:center;gap:8px">' +
+                    '<img src="'+(p.image_url||'/images/placeholder.svg')+'" style="width:48px;height:36px;object-fit:cover;border-radius:4px" />' +
+                    '<span class="product-name" data-id="'+(p.id||'')+'" data-name="'+((p.name||'').replace(/\"/g,'&quot;'))+'">'+ (p.name || '') +'</span>' +
+                  '</td>' +
+                  '<td>'+(p.sku||'')+'</td>' +
+                  '<td>' + ( (p.supplier && typeof p.supplier === 'object') ? (p.supplier.name || '') : (p.supplier || p.supplier_id || '') ) + '</td>' +
+                  '<td class="num">'+(p.stock ?? 0)+'</td>' +
+                  '<td class="num">'+(p.price1_total ?? p.price1 ?? '-')+'</td>' +
+                  '<td class="num">'+(p.cost ?? '-')+'</td>' +
+                  '<td class="actions"><button type="button" class="btn small edit-btn" data-id="'+(p.id||'')+'">Editar</button> <button type="button" class="btn small muted adjust-btn" data-id="'+(p.id||'')+'">Ajustar</button></td>';
+                return tr;
+              });
+              inventoryBody.innerHTML = '';
+              rows.forEach(r=>inventoryBody.appendChild(r));
+            }).catch(e=>{ if (dbg) dbg.textContent = 'fallback error: '+(e && e.message || e); });
+          } catch(e){ const dbg = document.getElementById('debugResponse'); if (dbg) dbg.textContent = 'fallback init error: '+(e && e.message || e); }
+        })();
+      </script>
+      <script src="/js/inventory.js"></script>
+      <!-- Debug: botón temporal para abrir detalle del producto (solo ambiente dev) -->
+      <button id="debugOpenDetail" style="position:fixed;right:18px;bottom:80px;background:#10b981;color:#072038;border:none;padding:8px 12px;border-radius:8px;z-index:2000;box-shadow:0 6px 20px rgba(2,6,23,0.6);">Abrir detalle (test)</button>
+      <div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+  </body>
+</html>

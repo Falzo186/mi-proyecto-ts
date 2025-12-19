@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+  </head>
+  <body class="pos-bg">
+    <main class="login-card">
+      <header class="brand">
+        <div class="login-brand">
+          <img src="/images/logo.png" alt="Comercializadora Murillo" class="login-logo" />
+          <div>
+            <h1>Comercializadora Murillo</h1>
+            <p class="tag">Conectando Mercados — Punto de Venta (Demo)</p>
+          </div>
+        </div>
+      </header>
+
+      <% if (typeof error !== 'undefined') { %>
+        <div class="alert"><%= error %></div>
+      <% } %>
+
+      <form id="loginForm" action="/login" method="post" class="login-form">
+        <label for="username">Usuario</label>
+        <input id="username" name="username" placeholder="admin o cajero" required />
+
+        <label for="password">Contraseña</label>
+        <input id="password" name="password" type="password" placeholder="demo" required />
+
+        <button type="submit" class="btn">Ingresar (demo)</button>
+      </form>
+
+      <footer class="hint">Usa cualquier usuario listado (admin, cajero) y contraseña <strong>demo</strong></footer>
+    </main>
+    <script src="/js/login.js"></script>
+  </body>
+</html>

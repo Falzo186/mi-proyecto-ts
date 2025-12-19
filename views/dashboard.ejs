@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+  </head>
+  <body class="pos-bg">
+    <div class="app">
+      <%- include('partials/_sidebar') %>
+
+      <div class="main">
+        <%- include('partials/_header') %>
+
+        <main class="content">
+          <section class="kpis">
+            <div class="kpi-card">
+              <div class="kpi-title">Venta del Día</div>
+              <div class="kpi-value">$1,250.00 USD</div>
+              <div class="kpi-sub">Comparación: <span class="muted">Semana</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Venta del Mes</div>
+              <div class="kpi-value">$18,750.00 USD</div>
+              <div class="kpi-sub">Periodo: <span class="muted">Mensual</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Margen de Utilidad</div>
+              <div class="kpi-value">28.5%</div>
+              <div class="kpi-sub">Costo de Inventario</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Costo de Inventario</div>
+              <div class="kpi-value">$125,000 USD</div>
+              <div class="kpi-sub">Valor actual</div>
+            </div>
+          </section>
+
+          <section class="panels">
+            <div class="panel left">
+              <div class="panel-card">
+                <div class="panel-header">
+                  <h3>Histórico de Ventas</h3>
+                  <div class="period-tabs">
+                    <button data-period="weekly">Semanal</button>
+                    <button data-period="monthly" class="active">Mensual</button>
+                    <button data-period="yearly">Anual</button>
+                  </div>
+                </div>
+                <canvas id="salesChart" height="160"></canvas>
+              </div>
+
+              <div class="panel-card mt">
+                <h3>Alertas de Stock Bajo</h3>
+                <ul class="alerts">
+                  <li>Tornillos - 50 pcs</li>
+                  <li>Guantes de Seguridad - 35 pcs</li>
+                  <li>Pintura Blanca - 12 pcs</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="panel right">
+              <div class="panel-card">
+                <h3>Productos Más Vendidos</h3>
+                <canvas id="productsChart" height="200"></canvas>
+              </div>
+
+              <div class="panel-card mt">
+                <h3>Pendientes de Cotización</h3>
+                <ul class="quotes">
+                  <li>Cotización #2023-005</li>
+                  <li>Cotización #2023-006</li>
+                  <li>Cotización #2023-007</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/js/dashboard.js"></script>
+  </body>
+</html>
